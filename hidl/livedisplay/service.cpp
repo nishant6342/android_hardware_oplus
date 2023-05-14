@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2021 The LineageOS Project
+ * Copyright (C) 2019 The LineageOS Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,53 +14,47 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "vendor.lineage.livedisplay@2.1-service-oplus"
+#define LOG_TAG "vendor.lineage.livedisplay@2.0-service-oplus"
 
 #include <android-base/logging.h>
 #include <binder/ProcessState.h>
 #include <hidl/HidlTransportSupport.h>
-#include <livedisplay/oplus/SunlightEnhancement.h>
-#include <livedisplay/sdm/PictureAdjustment.h>
-#include <vendor/lineage/livedisplay/2.1/IPictureAdjustment.h>
 
-using ::android::OK;
-using ::android::sp;
-using ::android::status_t;
-using ::android::hardware::configureRpcThreadpool;
-using ::android::hardware::joinRpcThreadpool;
+#include "DisplayColorCalibration.h"
 
-using ::vendor::lineage::livedisplay::V2_0::sdm::PictureAdjustment;
-using ::vendor::lineage::livedisplay::V2_0::sdm::SDMController;
-using ::vendor::lineage::livedisplay::V2_1::IPictureAdjustment;
-using ::vendor::lineage::livedisplay::V2_1::ISunlightEnhancement;
-using ::vendor::lineage::livedisplay::V2_1::implementation::SunlightEnhancement;
+using android::OK;
+using android::sp;
+using android::status_t;
+using android::hardware::configureRpcThreadpool;
+using android::hardware::joinRpcThreadpool;
+
+using ::vendor::lineage::livedisplay::V2_0::IDisplayColorCalibration;
+using ::vendor::lineage::livedisplay::V2_0::oplus::DisplayColorCalibration;
 
 int main() {
-    status_t status = OK;
+    // HALs
+    sp<DisplayColorCalibration> dcc;
 
-    android::ProcessState::initWithDriver("/dev/vndbinder");
+    status_t status = OK;
 
     LOG(INFO) << "LiveDisplay HAL service is starting.";
 
-    std::shared_ptr<SDMController> controller = std::make_shared<SDMController>();
-
-    sp<PictureAdjustment> pa = new PictureAdjustment(controller);
-    sp<SunlightEnhancement> se = new SunlightEnhancement();
-
-    configureRpcThreadpool(1, true /*callerWillJoin*/);
-
-    status = pa->registerAsService();
-    if (status != OK) {
-        LOG(ERROR) << "Could not register service for LiveDisplay HAL PictureAdjustment Iface ("
-                   << status << ")";
+    dcc = new DisplayColorCalibration();
+    if (dcc == nullptr) {
+        LOG(ERROR) << "Can not create an instance of LiveDisplay HAL DisplayColorCalibration Iface,"
+                   << " exiting.";
         goto shutdown;
     }
 
-    status = se->registerAsService();
-    if (status != OK) {
-        LOG(ERROR) << "Could not register service for LiveDisplay HAL SunlightEnhancement Iface ("
-                   << status << ")";
-        goto shutdown;
+    configureRpcThreadpool(1, true /*callerWillJoin*/);
+
+    if (dcc->isSupported()) {
+        status = dcc->registerAsService();
+        if (status != OK) {
+            LOG(ERROR) << "Could not register service for LiveDisplay HAL DisplayColorCalibration"
+                       << " Iface (" << status << ")";
+            goto shutdown;
+        }
     }
 
     LOG(INFO) << "LiveDisplay HAL service is ready.";
